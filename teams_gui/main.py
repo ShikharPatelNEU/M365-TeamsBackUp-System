@@ -1,6 +1,8 @@
 import urllib.parse
 import sqlalchemy as db
 import sys
+import os
+from dotenv import load_dotenv
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QComboBox, QVBoxLayout, QWidget, \
     QHBoxLayout, QLineEdit, QTableWidget, QTableWidgetItem, QHeaderView, QAbstractItemView, QMessageBox
@@ -8,8 +10,19 @@ from PyQt6.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QCom
 
 def connect_to_database():
     try:
-        password_encoded = urllib.parse.quote_plus("Password@123")
-        connection_string = f"mssql+pymssql://sa:{password_encoded}@localhost:1433/teams"
+        # Load environment variables from .env file
+        load_dotenv()
+
+        # Retrieve secrets from environment variables
+        db_username = os.getenv("DB_USERNAME")
+        db_password = os.getenv("DB_PASSWORD")
+        db_name = os.getenv("DB_NAME")
+        db_host = os.getenv("DB_HOST")
+        db_port = os.getenv("DB_PORT")
+
+        # Use the secrets
+        password_encoded = urllib.parse.quote_plus(db_password)
+        connection_string = f"mssql+pymssql://{db_username}:{password_encoded}@{db_host}:{db_port}/{db_name}"
         engine = db.create_engine(connection_string)
         connection = engine.connect()
         print(f"DB connection successfully")
@@ -41,6 +54,73 @@ def get_table_headers(engine, table_name='teams'):
         return None
 
 
+# def decrypt_org_email(session, all_res):
+#     decrypted_emails = []
+#
+#     for org_id, org_name, encrypted_email in all_res:
+#         # Call the database procedure to decrypt the email
+#         result = session.execute("EXEC DecryptOrganizationEmailByID :org_id", {"org_id": org_id})
+#
+#         # Fetch the decrypted email from the result set
+#         decrypted_email = result.fetchone()[0] if result.rowcount > 0 else None
+#
+#         # Append the tuple with org_id, org_name, and decrypted_email to the result list
+#         decrypted_emails.append((org_id, org_name, decrypted_email))
+#
+#     return decrypted_emails
+
+def decrypt_org_email(connection, all_res):
+    decrypted_emails = []
+
+    for org_id, org_name, encrypted_email in all_res:
+        # Create an output parameter for the decrypted email
+        decrypted_email_param = db.outparam("decryptedEmail")
+        output = ""
+
+        # Call the database procedure to decrypt the email
+        result = connection.execute(db.text(f"EXEC DecryptOrganizationEmailByID {org_id}"))
+        # print(output)
+        # print(result)
+
+        row = result.fetchone()
+        if row is not None:
+            decrypted_email = row[0]
+        else:
+            decrypted_email = 'No Email'
+
+        # Append the tuple with org_id, org_name, and decrypted_email to the result list
+        decrypted_emails.append((org_id, org_name, decrypted_email))
+
+    return decrypted_emails
+
+
+def decrypt_user_email(connection, all_res):
+    decrypted_emails = []
+    for user_id, first_name, last_name, user_email, org_id in all_res:
+        result = connection.execute(db.text(f"EXEC DecryptUserEmailByID {user_id}"))
+        row = result.fetchone()
+        if row is not None:
+            decrypted_email = row[0]
+        else:
+            decrypted_email = 'No Email'
+        decrypted_emails.append((user_id, first_name, last_name, decrypted_email, org_id))
+    return decrypted_emails
+
+
+def decrypt_messages(connection, all_res):
+    decrypted_msgs = []
+    print(all_res)
+    for msg_id, usr_id, channel_id, msg_txt, creation_date, last_modified_date in all_res:
+        result = connection.execute(db.text(f"EXEC DecryptMessageByID {msg_id}"))
+        row = result.fetchone()
+        if row is not None:
+            decrypted_msg = row[0]
+        else:
+            decrypted_msg = ''
+        decrypted_msgs.append((msg_id, usr_id, channel_id, decrypted_msg, creation_date, last_modified_date))
+    return decrypted_msgs
+
+
 def get_table_data(engine, table_name='teams'):
     try:
         metadata = db.MetaData()
@@ -49,6 +129,14 @@ def get_table_data(engine, table_name='teams'):
         query = db.select(table.columns)
         res_proxy = connection.execute(query)
         all_rows = res_proxy.fetchall()
+        if table_name == 'Organization':
+            all_rows = decrypt_org_email(connection, all_rows)
+        if table_name == 'Users':
+            all_rows = decrypt_user_email(connection, all_rows)
+        # print(all_rows)l
+        # print(table_name)
+        if table_name == 'Messages':
+            all_rows = decrypt_messages(connection, all_rows)
         return all_rows
     except Exception as e:
         print(f"Error fetching table: {e}")
@@ -96,6 +184,9 @@ class TableWindow(QMainWindow):
         self.table = QTableWidget()
         self.update_table()
 
+        # Set selection mode to SingleSelection
+        self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+
         # Layout
         self.layout.addWidget(self.table)
 
@@ -108,19 +199,44 @@ class TableWindow(QMainWindow):
         create_button = QPushButton("Create")
         update_button = QPushButton("Update")
         delete_button = QPushButton("Delete")
+        refresh_button = QPushButton("Refresh")
 
         # Connect CRUD buttons to methods
         create_button.clicked.connect(self.on_create_click)
         update_button.clicked.connect(self.on_update_click)
         delete_button.clicked.connect(self.on_delete_click)
+        refresh_button.clicked.connect(self.refresh_table)
 
         # Layout for CRUD buttons
         buttons_layout = QHBoxLayout()
         buttons_layout.addWidget(create_button)
         buttons_layout.addWidget(update_button)
         buttons_layout.addWidget(delete_button)
+        buttons_layout.addWidget(refresh_button)
         self.layout.addLayout(buttons_layout)  # Add buttons layout to main layout
-        self.table.itemClicked.connect(self.on_row_click)
+        # self.table.itemClicked.connect(self.on_row_click)
+        # Connect currentItemChanged signal to on_row_select method
+        self.table.currentItemChanged.connect(self.on_row_select)
+
+    def refresh_table(self):
+        self.filtered_data = []
+        self.fetch_table_data()
+        self.update_table()
+        # Clear filter widgets
+        for widget in self.filter_widgets:
+            widget.setText("")
+
+    def on_row_select(self, current, previous):
+        if current is not None:
+            # Get the row index of the selected item
+            row_index = current.row()
+
+            # Get the data for the selected row
+            row_data = self.filtered_data[row_index]
+
+            # Update the filter text boxes with the data from the selected row
+            for widget, value in zip(self.filter_widgets, row_data):
+                widget.setText(str(value))
 
     def on_row_click(self, item):
         # Get the row index of the clicked item
@@ -145,18 +261,26 @@ class TableWindow(QMainWindow):
         for index, header in enumerate(self.headers):
             label = QLabel(header)
             line_edit = QLineEdit()
-            line_edit.textChanged.connect(lambda text, index=index: self.filter_data(index, text))
+            # line_edit.textChanged.connect(lambda text, index=index: self.filter_data(index, text))
+            line_edit.textChanged.connect(lambda text, index=index: self.filter_data())
             hbox = QHBoxLayout()
             hbox.addWidget(label)
             hbox.addWidget(line_edit)
             self.layout.addLayout(hbox)
             self.filter_widgets.append(line_edit)
 
-    def filter_data(self, column_index, text):
-        if text.strip():  # Check if the filter text is not empty
-            self.filtered_data = [row for row in self.data if str(row[column_index]).lower() == text.lower()]
-        else:
-            self.filtered_data = self.data[:]  # If filter text is empty, show all data
+    def filter_data(self):
+        # Get filter values from filter widgets
+        filter_values = [widget.text().lower() for widget in self.filter_widgets]
+
+        # Filter data based on filter values
+        self.filtered_data = []
+        for row in self.data:
+            include_row = all(value in str(cell).lower() for value, cell in zip(filter_values, row))
+            if include_row:
+                self.filtered_data.append(row)
+
+        # Update the table with filtered data
         self.update_table()
 
     def update_table(self):
@@ -167,7 +291,9 @@ class TableWindow(QMainWindow):
 
         for row_index, row in enumerate(self.filtered_data):
             for col_index, value in enumerate(row):
-                self.table.setItem(row_index, col_index, QTableWidgetItem(str(value)))
+                item = QTableWidgetItem(str(value))
+                item.setFlags(item.flags() ^ Qt.ItemFlag.ItemIsEditable)  # Make the item non-editable
+                self.table.setItem(row_index, col_index, item)
 
         # Set selection mode to select entire rows
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)

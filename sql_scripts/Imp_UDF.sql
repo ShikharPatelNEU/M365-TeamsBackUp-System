@@ -31,6 +31,7 @@ RETURN
 );
 
 GO
+
 -- SELECT * FROM GetIndexesForDatabase('teams') ORDER BY SchemaName, TableName, IndexName, ColumnOrder;
 
 GO

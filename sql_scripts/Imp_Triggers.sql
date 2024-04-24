@@ -75,8 +75,12 @@ END;
 GO
 
 
--- delete from messages where message_id = 35;
+-- delete from messages where message_id = 2;
 
 -- select * from messages where message_id = 35;
 
 -- select * from OldMessages;
+
+-- DECLARE @message NVARCHAR(255)
+-- EXEC UpdateMessage 1,1, 'hey bro', '2022-02-25', @message OUTPUT;
+-- PRINT @message

@@ -129,8 +129,9 @@ CREATE PROCEDURE DecryptMessageByID
     @message_id INT
 AS
 BEGIN
+    -- Declare a variable to hold the decrypted message
     DECLARE @decryptedMessage NVARCHAR(MAX);
-
+    
     -- Open the symmetric key for decryption
     OPEN SYMMETRIC KEY MessageKey
     DECRYPTION BY CERTIFICATE MessageCert;
@@ -146,20 +147,24 @@ BEGIN
     -- Output the decrypted message
     IF @decryptedMessage IS NOT NULL
     BEGIN
-        PRINT 'Decrypted Message:';
-        PRINT @decryptedMessage;
+        -- Return the decrypted message as a result set
+        SELECT @decryptedMessage AS DecryptedMessage;
     END
     ELSE
     BEGIN
-        PRINT 'Message not found for the given message ID.';
+        -- If message not found, return a message
+        SELECT '' AS DecryptedMessage;
     END
 END;
+
 GO
 
--- EXEC DecryptMessageByID 3
--- DECLARE @message NVARCHAR(255)
--- EXEC UpdateMessage 1,1, 'hey bro', '2022-02-25', @message OUTPUT;
--- PRINT @message
+-- DROP PROCEDURE DecryptMessageByID;
+
+GO
+
+-- DECLARE @message_id INT = 10;
+-- EXEC DecryptMessageByID @message_id;
 
 GO
 
@@ -168,6 +173,86 @@ GO
 -- EXEC PendingStorageForOrg 1;
 
 -- drop PROCEDURE PendingStorageForOrg;
+GO
+
+-- drop procedure DecryptOrganizationEmailByID;
+GO
+
+CREATE PROCEDURE DecryptOrganizationEmailByID
+    @org_id INT
+AS
+BEGIN
+    DECLARE @decryptedEmail VARCHAR(4000);
+    
+    -- Open the symmetric key for decryption
+    OPEN SYMMETRIC KEY OrgKey
+    DECRYPTION BY CERTIFICATE OrgCert;
+
+    -- Decrypt the organization email
+    SELECT @decryptedEmail = CONVERT(VARCHAR(4000), DECRYPTBYKEY(org_admin_email))
+    FROM Organization
+    WHERE org_id = @org_id;
+
+    -- Close the symmetric key
+    CLOSE SYMMETRIC KEY OrgKey;
+
+    -- Return the decrypted email
+    IF @decryptedEmail IS NOT NULL
+    BEGIN
+        SELECT @decryptedEmail AS DecryptedEmail;
+    END
+    ELSE
+    BEGIN
+        SELECT 'No email' AS DecryptedEmail;
+    END
+END;
+GO
+
+-- DECLARE @org_id INT = 1; 
+-- EXEC DecryptOrganizationEmailByID @org_id;
+
+GO
+
+CREATE PROCEDURE DecryptUserEmailByID
+    @user_id INT
+AS
+BEGIN
+    -- Declare a variable to hold the decrypted email
+    DECLARE @decryptedEmail VARCHAR(4000);
+    
+    -- Open the symmetric key for decryption
+    OPEN SYMMETRIC KEY UserKey
+    DECRYPTION BY CERTIFICATE UserCert;
+
+    -- Decrypt the user email
+    SELECT @decryptedEmail = CONVERT(VARCHAR(4000), DECRYPTBYKEY(user_email))
+    FROM Users
+    WHERE user_id = @user_id;
+
+    -- Close the symmetric key
+    CLOSE SYMMETRIC KEY UserKey;
+
+    -- Output the decrypted email
+    IF @decryptedEmail IS NOT NULL
+    BEGIN
+        -- Return the decrypted email as a result set
+        SELECT @decryptedEmail AS DecryptedEmail;
+    END
+    ELSE
+    BEGIN
+        -- If no email found, return a message
+        SELECT 'No email.' AS DecryptedEmail;
+    END
+END;
+
+GO
+
+-- DECLARE @user_id INT = 10;
+-- EXEC DecryptUserEmailByID @user_id;
+
+GO
+-- DROP procedure DecryptUserEmailByID;
+GO
 
 SELECT OBJECT_SCHEMA_NAME(object_id) AS SchemaName,
        name AS ProcedureName,
