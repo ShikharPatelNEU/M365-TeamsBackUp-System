@@ -23,7 +23,7 @@ INNER JOIN
 GO
 
 ---To retrieve data from these views---
-SELECT * FROM vw_OrganizationSubscriptionDetails;
+-- SELECT * FROM vw_OrganizationSubscriptionDetails;
 
 GO
 ---View for Team Membership and Roles---
@@ -42,7 +42,7 @@ INNER JOIN
 GO
 
 -- Drop view vw_TeamMembershipDetails;
-SELECT * FROM vw_TeamMembershipDetails;
+-- SELECT * FROM vw_TeamMembershipDetails;
 
 GO
 ---View for Organization Storage Usage---
@@ -68,7 +68,7 @@ GROUP BY
 GO
 
 -- DROP VIEW vw_OrganizationStorageUsage;
-SELECT * FROM vw_OrganizationStorageUsage;
+-- SELECT * FROM vw_OrganizationStorageUsage;
 
 GO
 ---View for Active Subscriptions---
@@ -92,7 +92,7 @@ WHERE
     GETDATE() BETWEEN opm.plan_start_date AND opm.plan_end_date;
 GO
 
-SELECT * FROM vw_ActiveSubscriptions;
+-- SELECT * FROM vw_ActiveSubscriptions;
 
 GO
 ---View for User Activity Summary---
@@ -111,6 +111,6 @@ GROUP BY
 GO
 
 -- DROP VIEW vw_UserActivitySummary;
-SELECT * FROM vw_UserActivitySummary;
+-- SELECT * FROM vw_UserActivitySummary;
 
 

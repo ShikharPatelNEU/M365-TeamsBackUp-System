@@ -54,34 +54,12 @@ def get_table_headers(engine, table_name='teams'):
         return None
 
 
-# def decrypt_org_email(session, all_res):
-#     decrypted_emails = []
-#
-#     for org_id, org_name, encrypted_email in all_res:
-#         # Call the database procedure to decrypt the email
-#         result = session.execute("EXEC DecryptOrganizationEmailByID :org_id", {"org_id": org_id})
-#
-#         # Fetch the decrypted email from the result set
-#         decrypted_email = result.fetchone()[0] if result.rowcount > 0 else None
-#
-#         # Append the tuple with org_id, org_name, and decrypted_email to the result list
-#         decrypted_emails.append((org_id, org_name, decrypted_email))
-#
-#     return decrypted_emails
-
 def decrypt_org_email(connection, all_res):
     decrypted_emails = []
 
     for org_id, org_name, encrypted_email in all_res:
-        # Create an output parameter for the decrypted email
-        decrypted_email_param = db.outparam("decryptedEmail")
-        output = ""
-
         # Call the database procedure to decrypt the email
         result = connection.execute(db.text(f"EXEC DecryptOrganizationEmailByID {org_id}"))
-        # print(output)
-        # print(result)
-
         row = result.fetchone()
         if row is not None:
             decrypted_email = row[0]
