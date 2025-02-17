@@ -1,4 +1,4 @@
-# M365-TeamsBackUp-System
+# Microsoft 365-Teams-BackUp-Management-System
 
 ## Overview
 M365-TeamsBackUp-System is a comprehensive database system designed to back up Teams data for multiple organizations. It includes a well-structured database schema, scripts for schema creation, procedures for data manipulation, encryption for data security, various database objects like views, indexes, triggers, and user-defined functions, as well as visualizations and a GUI for easy management.
