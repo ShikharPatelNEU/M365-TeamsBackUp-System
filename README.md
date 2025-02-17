@@ -24,11 +24,11 @@ M365-TeamsBackUp-System is a comprehensive database system designed to back up T
 - Refer to the provided scripts and procedures for managing the database and performing backup operations.
 
 ## Contributors
-- Sourabh Kumar
 - Divya S V
 - Sai Spandana Inaparthy
 - Saicharantej Katteboina
 - Shikhar Patel
+- Sourabh Kumar
 
 ## License
 This project is licensed under the [License Name] License - see the [LICENSE](LICENSE) file for details.
